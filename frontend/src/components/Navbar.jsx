@@ -43,7 +43,15 @@ const Navbar = ({ usuario, vistaActual, onNavegar, onCerrarSesion, carritoCantid
                 
                 <span className="hidden md:flex items-center gap-2 text-slate-300 text-sm">
                   <User className="h-4 w-4" />
-                  Hola, <span className="font-bold text-white">{usuario.nombre}</span>
+                  
+                  {/* --- 🔴 DEBUG: EL CHISMOSO DE ROL --- */}
+                  {/* Esto te mostrará qué rol tiene el usuario realmente */}
+                  <span className="bg-red-500 text-white px-2 py-0.5 text-xs rounded font-mono border border-red-400 shadow-sm">
+                     ROL: "{usuario.rol}"
+                  </span>
+                  {/* ----------------------------------- */}
+
+                  <span className="ml-1">Hola, <span className="font-bold text-white">{usuario.nombre}</span></span>
                 </span>
 
                 <div className="h-6 w-px bg-slate-700 mx-2"></div>
@@ -61,7 +69,7 @@ const Navbar = ({ usuario, vistaActual, onNavegar, onCerrarSesion, carritoCantid
                   </button>
                 )}
 
-                {/* BOTÓN MIS PEDIDOS (Nuevo) */}
+                {/* BOTÓN MIS PEDIDOS */}
                 <button 
                   onClick={() => onNavegar('pedidos')}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition ${
