@@ -1,0 +1,167 @@
+-- 1. CREACIÓN DE LA BASE DE DATOS
+-- Solo si no tienes una base de datos creada, si ya la tienes, omite esta línea.
+CREATE DATABASE IF NOT EXISTS ecommerce_db;
+
+-- 2. SELECCIONAR LA BASE DE DATOS
+USE ecommerce_db;
+
+-- 3. CREACIÓN DE LA TABLA DE USUARIOS
+-- Almacena la información de clientes y administradores.
+CREATE TABLE usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE, -- El email es único y se usa para el login.
+    hash_contrasena VARCHAR(255) NOT NULL, -- Almacena el hash seguro generado por bcrypt.
+    rol ENUM('cliente', 'administrador') DEFAULT 'cliente', -- Rol para control de acceso (Autorización).
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. CREACIÓN DE LA TABLA DE CATEGORÍAS
+-- Almacena las clasificaciones de los productos (ej: Electrónica, Ropa, Libros).
+CREATE TABLE categorias (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE
+);
+
+-- 5. CREACIÓN DE LA TABLA DE PRODUCTOS
+-- Almacena el catálogo de artículos en venta.
+CREATE TABLE productos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    precio DECIMAL(10, 2) NOT NULL, -- Uso de DECIMAL para precisión en precios.
+    stock INT NOT NULL DEFAULT 0,
+    imagen_url VARCHAR(255), -- URL de la imagen del producto.
+    id_categoria INT,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_categoria) REFERENCES categorias(id) ON DELETE SET NULL -- Enlace a Categorías.
+);
+
+-- 6. CREACIÓN DE LA TABLA DE PEDIDOS
+-- Almacena los registros de las transacciones.
+CREATE TABLE pedidos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL,
+    fecha_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total DECIMAL(10, 2) NOT NULL,
+    estado ENUM('pendiente', 'procesando', 'enviado', 'entregado', 'cancelado') DEFAULT 'pendiente',
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id) ON DELETE CASCADE -- Enlace a Usuarios.
+);
+
+-- 7. CREACIÓN DE LA TABLA DE DETALLE_PEDIDO
+-- Tabla que enlaza Pedidos con Productos (relación muchos a muchos).
+CREATE TABLE detalle_pedido (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    id_pedido INT NOT NULL,
+    id_producto INT NOT NULL,
+    cantidad INT NOT NULL,
+    precio_unitario DECIMAL(10, 2) NOT NULL, -- Precio que se le vendió al cliente (histórico).
+    FOREIGN KEY (id_pedido) REFERENCES pedidos(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_producto) REFERENCES productos(id) ON DELETE RESTRICT,
+    UNIQUE KEY uk_detalle (id_pedido, id_producto) -- Restricción para evitar duplicados en el mismo pedido.
+);
+
+USE ecommerce_db;
+
+-- 1. Asegurarnos que la tabla categorías exista
+CREATE TABLE IF NOT EXISTS categorias (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE
+);
+
+-- 2. Insertar las categorías (Si ya existen no pasa nada, si no, las crea)
+INSERT IGNORE INTO categorias (id, nombre) VALUES 
+(1, 'Tecnología'),
+(2, 'Audio'),
+(3, 'Periféricos'),
+(4, 'Mobiliario');
+
+-- 3. AGREGAR LA COLUMNA FALTANTE a Productos
+ALTER TABLE productos 
+ADD COLUMN id_categoria INT,
+ADD CONSTRAINT fk_producto_categoria 
+FOREIGN KEY (id_categoria) REFERENCES categorias(id) ON DELETE SET NULL;
+
+
+ALTER TABLE productos
+MODIFY COLUMN createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE productos
+MODIFY COLUMN updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+
+INSERT INTO productos (nombre, descripcion, precio, stock, imagen_url, id_categoria) VALUES 
+('Laptop Gamer Legion 5', 'Procesador Ryzen 7, RTX 3060, 16GB RAM.', 1299.99, 10, 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=500&q=80', 1),
+('Sony WH-1000XM5', 'Cancelación de ruido líder en la industria.', 349.50, 15, 'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?auto=format&fit=crop&w=500&q=80', 2),
+('Mouse Logitech MX Master', 'El ratón de productividad definitivo.', 99.00, 25, '🖱️', 3),
+('Monitor Samsung Odyssey G9', 'Monitor curvo de 49 pulgadas.', 1100.00, 0, 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=500&q=80', 1),
+('Teclado Mecánico RGB', 'Switches azules, retroiluminación.', 45.00, 50, '⌨️', 3),
+('Silla Ergonómica Herman Miller', 'Diseñada para trabajar 12 horas.', 850.00, 5, '💺', 4);
+
+SELECT * FROM productos;
+
+USE ecommerce_db;
+
+USE ecommerce_db;
+
+-- Mouse (ID 5)
+UPDATE productos 
+SET imagen_url = 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=500&q=80' 
+WHERE id = 5;
+
+-- Teclado (ID 7)
+UPDATE productos 
+SET imagen_url = 'https://images.unsplash.com/photo-1587829741301-dc798b91a603?auto=format&fit=crop&w=500&q=80' 
+WHERE id = 7;
+
+-- Silla (ID 8)
+UPDATE productos 
+SET imagen_url = 'https://images.unsplash.com/photo-1505843490538-5133c6c7d0e1?auto=format&fit=crop&w=500&q=80' 
+WHERE id = 8;
+
+-- 1. Actualizar la Primera Laptop (ID 1)
+UPDATE productos 
+SET imagen_url = 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=500&q=80' 
+WHERE id = 1;
+
+-- 2. Actualizar el Teléfono (ID 2)
+UPDATE productos 
+SET imagen_url = 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=500&q=80' 
+WHERE id = 2;
+
+USE ecommerce_db;
+
+-- 1. Desactivamos el seguro temporalmente
+SET SQL_SAFE_UPDATES = 0;
+
+-- 2. Buscamos CUALQUIER teclado y le ponemos la foto
+UPDATE productos 
+SET imagen_url = 'https://images.unsplash.com/photo-1587829741301-dc798b91a603?auto=format&fit=crop&w=500&q=80' 
+WHERE nombre LIKE '%Teclado%';
+
+-- 3. Volvemos a activar el seguro
+SET SQL_SAFE_UPDATES = 1;
+
+-- 3. Actualizar la Laptop Legion (ID 3)
+UPDATE productos 
+SET imagen_url = 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=500&q=80' 
+WHERE id = 3;
+
+-- 4. Actualizar el Teclado (ID 7)
+UPDATE productos 
+SET imagen_url = 'https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=500&q=80' 
+WHERE id = 7;
+
+select * from productos;
+
+
+UPDATE usuarios 
+SET rol = 'administrador' 
+WHERE email = 'moises_perez69232@elpoli.edu.co'; 
+
+-- Verifica que el cambio se hizo
+SELECT * FROM usuarios; WHERE email = 'moises_perez69232@elpoli.edu.co';
+
+
+UPDATE usuarios 
+SET hash_contrasena = '$2b$10$vRe79q0Wg3d4q7TeSde70Oi6hLAUKSEFC7YMPG0iCMjsvN3RzsjWq' 
+WHERE email = 'moises_perez69232@elpoli.edu.co'; -- O el email de tu admin
