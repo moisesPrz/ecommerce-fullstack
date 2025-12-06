@@ -46,7 +46,9 @@ app.use(cors({
         'http://localhost:5173', 
         'http://localhost:5174', 
         'http://127.0.0.1:5173',
-        'http://localhost:3000'
+        'http://localhost:3000',
+        'https://techmarket-frontend.vercel.app',
+        'https://techmarket-frontend-TU_USUARIO.vercel.app'
     ], 
     credentials: true
 }));
