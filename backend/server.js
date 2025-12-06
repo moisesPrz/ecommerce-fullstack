@@ -41,17 +41,8 @@ const PORT = process.env.PORT || 3001;
 app.use(express.json()); 
 app.use(helmet());
 // Configuración de CORS para permitir que el Frontend (React) se conecte
-app.use(cors({
-    origin: [
-        'http://localhost:5173', 
-        'http://localhost:5174', 
-        'http://127.0.0.1:5173',
-        'http://localhost:3000',
-        'https://techmarket-frontend.vercel.app',
-        'https://techmarket-frontend-TU_USUARIO.vercel.app'
-    ], 
-    credentials: true
-}));
+// Configuración de CORS: Permitir TODO (Solución definitiva para deploy)
+app.use(cors());
 
 // Manejo de errores de JSON mal formados
 app.use((err, req, res, next) => {
