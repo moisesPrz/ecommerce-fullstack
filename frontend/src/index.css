@@ -1,3 +1,157 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+
 @tailwind base;
-@tailwind utilities;
 @tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #0B1D3A;
+  --navy-mid: #152848;
+  --navy-light: #1E3A5F;
+  --gold: #C9A84C;
+  --gold-light: #E8C97A;
+  --white: #FFFFFF;
+  --off-white: #F8F9FC;
+  --gray-soft: #EEF1F6;
+  --gray-mid: #8A9BB5;
+  --text-dark: #0B1D3A;
+  --text-mid: #3D5278;
+  --shadow-card: 0 4px 24px rgba(11,29,58,0.08);
+  --shadow-hover: 0 12px 40px rgba(11,29,58,0.16);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--off-white);
+  color: var(--text-dark);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  /* ── BOTONES ── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 font-semibold text-sm px-6 py-3 rounded-xl transition-all duration-200;
+    background: var(--navy);
+    color: white;
+    box-shadow: 0 2px 8px rgba(11,29,58,0.25);
+  }
+  .btn-primary:hover {
+    background: var(--navy-light);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(11,29,58,0.3);
+  }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 font-semibold text-sm px-6 py-3 rounded-xl transition-all duration-200;
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    color: var(--navy);
+    box-shadow: 0 2px 8px rgba(201,168,76,0.35);
+  }
+  .btn-gold:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(201,168,76,0.45);
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 font-semibold text-sm px-6 py-3 rounded-xl transition-all duration-200 border-2;
+    border-color: var(--navy);
+    color: var(--navy);
+    background: transparent;
+  }
+  .btn-outline:hover {
+    background: var(--navy);
+    color: white;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    transition: all 0.25s ease;
+  }
+  .card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+  }
+
+  /* ── INPUTS ── */
+  .input-field {
+    @apply w-full px-4 py-3 text-sm rounded-xl border outline-none transition-all duration-200;
+    border-color: #DDE3EE;
+    background: var(--off-white);
+    color: var(--text-dark);
+  }
+  .input-field:focus {
+    border-color: var(--navy-light);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(30,58,95,0.1);
+  }
+
+  /* ── BADGES ── */
+  .badge-navy {
+    @apply text-xs font-semibold px-3 py-1 rounded-full;
+    background: rgba(11,29,58,0.08);
+    color: var(--navy);
+  }
+  .badge-gold {
+    @apply text-xs font-semibold px-3 py-1 rounded-full;
+    background: rgba(201,168,76,0.15);
+    color: #8B6914;
+  }
+  .badge-green {
+    @apply text-xs font-semibold px-3 py-1 rounded-full;
+    background: rgba(16,185,129,0.1);
+    color: #047857;
+  }
+  .badge-red {
+    @apply text-xs font-semibold px-3 py-1 rounded-full;
+    background: rgba(239,68,68,0.1);
+    color: #DC2626;
+  }
+
+  /* ── SECCIÓN HERO ── */
+  .hero-gradient {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 60%, #2563EB 100%);
+  }
+
+  /* ── DIVIDER GOLD ── */
+  .gold-divider {
+    height: 3px;
+    background: linear-gradient(90deg, var(--gold), var(--gold-light), transparent);
+    border-radius: 2px;
+  }
+}
+
+/* ── ANIMACIONES ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-up {
+  animation: fadeInUp 0.5s ease forwards;
+}
+.animate-fade-up-delay-1 { animation: fadeInUp 0.5s ease 0.1s both; }
+.animate-fade-up-delay-2 { animation: fadeInUp 0.5s ease 0.2s both; }
+.animate-fade-up-delay-3 { animation: fadeInUp 0.5s ease 0.3s both; }
+
+.skeleton {
+  background: linear-gradient(90deg, #EEF1F6 25%, #E2E7F0 50%, #EEF1F6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Scrollbar elegante */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--off-white); }
+::-webkit-scrollbar-thumb { background: var(--navy-light); border-radius: 3px; }

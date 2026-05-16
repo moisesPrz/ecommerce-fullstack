@@ -6,10 +6,8 @@ const path = require('path');
 
 // Middleware de seguridad
 const authMiddlewarePath = path.join(__dirname, '..', 'middleware', 'authMiddleware');
-const { verifyToken } = require(authMiddlewarePath);
-
+const { verificarToken } = require(authMiddlewarePath);
 // Rutas
-router.post('/', verifyToken, pedidoController.crearPedido); // Crear compra
-router.get('/mis-pedidos', verifyToken, pedidoController.obtenerMisPedidos); // <--- NUEVA RUTA (Ver historial)
-
+router.post('/', verificarToken, pedidoController.crearPedido);
+router.get('/mis-pedidos', verificarToken, pedidoController.obtenerMisPedidos);
 module.exports = router;

@@ -5,8 +5,7 @@ import api from '../config/api'; // Importamos la configuración
 import CheckoutForm from '../components/CheckoutForm';
 import { ShieldCheck, Lock } from 'lucide-react';
 
-// ⚠️ PEGA TU CLAVE PÚBLICA DE STRIPE AQUÍ (pk_test_...)
-const stripePromise = loadStripe("pk_test_TU_CLAVE_PUBLICA_AQUI");
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const PaymentPage = ({ carrito, token, onCompraExitosa }) => {
   const [clientSecret, setClientSecret] = useState("");

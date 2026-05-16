@@ -1,21 +1,52 @@
+/**
+ * ARCHIVO: backend/routes/productoRoutes.js
+ * 
+ * MEJORAS: Validaciones en crear y actualizar productos.
+ */
+
 const express = require('express');
-const router = express.Router();
+const router  = express.Router();
+const multer  = require('multer');
+
 const productoController = require('../controllers/productoController');
-const multer = require('multer');
+const { verificarToken, esAdmin, esVendedor } = require('../middleware/authMiddleware');
+const {
+  validarCrearProducto,
+  validarActualizarProducto,
+  validarBusqueda,
+} = require('../middleware/validaciones');
 
-// Configuración básica de Multer (Guardar temporalmente en carpeta 'uploads/')
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({
+  dest: 'uploads/',
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB máximo
+  fileFilter: (req, file, cb) => {
+    // Solo permitir imágenes
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Solo se permiten archivos de imagen'), false);
+    }
+    cb(null, true);
+  },
+});
 
-router.get('/', productoController.obtenerProductos);
+// Rutas públicas
+router.get('/', validarBusqueda, productoController.obtenerProductos);
 router.get('/:id', productoController.obtenerProductoPorId);
 
-// AGREGAMOS EL MIDDLEWARE 'upload.single'
-// Esto dice: "Espera un archivo llamado 'imagen' en el formulario"
-router.post('/', upload.single('imagen'), productoController.crearProducto);
+// Rutas protegidas
+router.post('/',
+  verificarToken,
+  upload.single('imagen'),
+  validarCrearProducto,
+  productoController.crearProducto
+);
 
-// También para editar (PUT)
-router.put('/:id', upload.single('imagen'), productoController.actualizarProducto); 
+router.put('/:id',
+  verificarToken,
+  upload.single('imagen'),
+  validarActualizarProducto,
+  productoController.actualizarProducto
+);
 
-router.delete('/:id', productoController.eliminarProducto);
+router.delete('/:id', verificarToken, productoController.eliminarProducto);
 
 module.exports = router;

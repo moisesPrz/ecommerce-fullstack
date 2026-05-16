@@ -1,72 +1,95 @@
-// ARCHIVO: src/components/ProductFilters.jsx
+// ARCHIVO: frontend/src/components/ProductFilters.jsx
 import React, { useState } from 'react';
-import { Search, Filter, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
+
+const categorias = [
+  { id: '', label: 'Todos' },
+  { id: '1', label: 'Tecnología' },
+  { id: '2', label: 'Audio' },
+  { id: '3', label: 'Periféricos' },
+  { id: '4', label: 'Mobiliario' },
+];
 
 const ProductFilters = ({ onFiltrar }) => {
   const [busqueda, setBusqueda] = useState('');
-  const [categoria, setCategoria] = useState('');
+  const [categoriaActiva, setCategoriaActiva] = useState('');
 
-  // IDs de categorías basados en tu base de datos
-  const categorias = [
-    { id: 1, nombre: 'Tecnología' },
-    { id: 2, nombre: 'Audio' },
-    { id: 3, nombre: 'Periféricos' },
-    { id: 4, nombre: 'Mobiliario' }
-  ];
-
-  const manejarEnvio = (e) => {
+  const handleBuscar = (e) => {
     e.preventDefault();
-    onFiltrar({ busqueda, categoria }); // Enviamos los datos al padre
+    const filtros = {};
+    if (busqueda.trim()) filtros.busqueda = busqueda.trim();
+    if (categoriaActiva) filtros.categoria = categoriaActiva;
+    onFiltrar(filtros);
   };
 
-  const limpiarFiltros = () => {
+  const handleCategoria = (id) => {
+    setCategoriaActiva(id);
+    const filtros = {};
+    if (busqueda.trim()) filtros.busqueda = busqueda.trim();
+    if (id) filtros.categoria = id;
+    onFiltrar(filtros);
+  };
+
+  const limpiar = () => {
     setBusqueda('');
-    setCategoria('');
-    onFiltrar({}); // Recargar todo limpio
+    setCategoriaActiva('');
+    onFiltrar({});
   };
 
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6">
-      <form onSubmit={manejarEnvio} className="flex flex-col md:flex-row gap-4 items-center">
-        
-        {/* Input Buscador */}
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar productos (ej: Gamer)..."
-            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-          />
+    <div className="py-6 border-b" style={{ borderColor: '#EEF1F6' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+
+          {/* Buscador */}
+          <form onSubmit={handleBuscar} className="flex gap-2 flex-1 max-w-xl">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#8A9BB5' }} />
+              <input
+                type="text"
+                placeholder="Buscar productos..."
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                className="input-field pl-11 py-3"
+              />
+              {busqueda && (
+                <button type="button" onClick={() => { setBusqueda(''); onFiltrar(categoriaActiva ? { categoria: categoriaActiva } : {}); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <button type="submit" className="btn-primary px-5 py-3 shrink-0">
+              <Search size={16} />
+            </button>
+          </form>
+
+          {/* Filtros rápidos */}
+          {(busqueda || categoriaActiva) && (
+            <button onClick={limpiar} className="text-sm font-medium flex items-center gap-1.5 hover:underline"
+              style={{ color: '#1E3A5F' }}>
+              <X size={14} /> Limpiar filtros
+            </button>
+          )}
         </div>
 
-        {/* Select Categoría */}
-        <div className="relative w-full md:w-48">
-          <Filter className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-          <select
-            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none bg-white"
-            value={categoria}
-            onChange={(e) => setCategoria(e.target.value)}
-          >
-            <option value="">Todas</option>
-            {categorias.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.nombre}</option>
-            ))}
-          </select>
+        {/* Categorías */}
+        <div className="flex gap-2 mt-4 flex-wrap">
+          {categorias.map(cat => (
+            <button key={cat.id} onClick={() => handleCategoria(cat.id)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                categoriaActiva === cat.id
+                  ? 'text-white shadow-sm'
+                  : 'hover:bg-slate-100'
+              }`}
+              style={categoriaActiva === cat.id
+                ? { background: '#0B1D3A', color: 'white' }
+                : { background: '#EEF1F6', color: '#3D5278' }}>
+              {cat.label}
+            </button>
+          ))}
         </div>
-
-        {/* Botones */}
-        <button type="submit" className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold hover:bg-slate-800 transition w-full md:w-auto">
-          Buscar
-        </button>
-
-        {(busqueda || categoria) && (
-          <button type="button" onClick={limpiarFiltros} className="text-red-500 p-2 hover:bg-red-50 rounded-lg">
-            <X className="h-5 w-5" />
-          </button>
-        )}
-      </form>
+      </div>
     </div>
   );
 };

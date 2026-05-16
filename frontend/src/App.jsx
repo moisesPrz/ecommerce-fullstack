@@ -11,7 +11,7 @@ import CartPage from './pages/CartPage';
 import AdminPage from './pages/AdminPage';
 import OrdersPage from './pages/OrdersPage';
 import PaymentPage from './pages/PaymentPage';
-
+import VendedorPage from './pages/VendedorPage';
 export default function App() {
   const [vistaActual, setVistaActual] = useState('catalogo');
   const [productos, setProductos] = useState([]);
@@ -101,6 +101,12 @@ export default function App() {
       case 'pedidos': return <OrdersPage />;
       case 'carrito': if (!usuario) return <PaginaLogin onLogin={manejarLogin} alIrARegistro={() => setVistaActual('registro')} />; return <CartPage carrito={carrito} onEliminar={eliminarDelCarrito} onActualizarCantidad={actualizarCantidad} onComprar={irAPagar} />;
       case 'pago': return <PaymentPage carrito={carrito} token={token} onCompraExitosa={finalizarPedido} />;
+      case 'vendedor':
+         if (!usuario || usuario.rol !== 'vendedor') return <div className="p-10 text-center">Acceso Denegado</div>;
+          return <VendedorPage />;
+      case 'admin':
+          if (!usuario || usuario.rol !== 'administrador') return <div className="p-10 text-center">Acceso Denegado</div>;
+         return <AdminPage />;
       case 'admin': if (!usuario || usuario.rol !== 'administrador') return <div className="p-10 text-center">Acceso Denegado</div>; return <AdminPage productos={productos} onAgregar={agregarProducto} onEliminar={eliminarProducto} onEditar={editarProducto} />;
       default: return <PaginaCatalogo productos={productos} agregarAlCarrito={agregarAlCarrito} />;
     }

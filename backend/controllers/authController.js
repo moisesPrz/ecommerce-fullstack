@@ -1,83 +1,152 @@
-// ARCHIVO: backend/controllers/authController.js
+/**
+ * ARCHIVO: backend/controllers/authController.js
+ * 
+ * PROPÓSITO: Manejar autenticación (registro, login).
+ * 
+ * MEJORAS APLICADAS:
+ * - Logs en cada evento de autenticación
+ * - Tiempo de respuesta constante en login (previene timing attacks)
+ * - Mensajes de error genéricos (no revelan si el email existe)
+ */
 
+const bcrypt  = require('bcryptjs');
+const jwt     = require('jsonwebtoken');
 const Usuario = require('../models/Usuario');
-const { hashPassword, generateToken, comparePassword } = require('../utils/authUtils');
+const logger  = require('../config/logger');
 
-exports.register = async (req, res) => {
-    const { nombre, email, password } = req.body;
+/**
+ * POST /api/auth/register
+ * Registra un nuevo usuario
+ */
+exports.registrar = async (req, res, next) => {
+  try {
+    const { nombre, email, password, rol = 'cliente' } = req.body;
 
-    // 1. Validación básica
-    if (!nombre || !email || !password) {
-        return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
+    // Verificar si el email ya está registrado
+    const existe = await Usuario.findOne({ where: { email } });
+    if (existe) {
+      logger.logAuth('register.email_duplicado', { email, ip: req.ip });
+      return res.status(409).json({
+        success: false,
+        message: 'Ya existe una cuenta con ese correo electrónico',
+      });
     }
 
-    // 2. 🛡️ VALIDACIÓN DE SEGURIDAD (NUEVO)
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
-    if (!passwordRegex.test(password)) {
-        return res.status(400).json({ 
-            error: 'La contraseña es débil. Requiere: 8 caracteres, mayúscula, minúscula, número y símbolo.' 
-        });
-    }
+    // Hash de contraseña (salt rounds = 12 para mayor seguridad)
+    const hash = await bcrypt.hash(password, 12);
 
-    try {
-        // Verificar si existe el email
-        const usuarioExistente = await Usuario.findOne({ where: { email } });
-        if (usuarioExistente) {
-            return res.status(409).json({ error: 'El correo ya está registrado.' });
-        }
+    // Crear usuario
+    const nuevoUsuario = await Usuario.create({
+      nombre: nombre.trim(),
+      email,
+      password: hash,
+      rol,
+    });
 
-        // Crear usuario
-        const hash_contrasena = await hashPassword(password);
-        const nuevoUsuario = await Usuario.create({
-            nombre,
-            email,
-            hash_contrasena,
-            rol: 'cliente',
-        });
+    // Generar JWT
+    const token = jwt.sign(
+      { id: nuevoUsuario.id, email: nuevoUsuario.email, rol: nuevoUsuario.rol },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
 
-        // Generar token y responder
-        const token = generateToken(nuevoUsuario);
-        return res.status(201).json({ 
-            message: 'Registro exitoso.',
-            token,
-            usuario: {
-                id: nuevoUsuario.id,
-                nombre: nuevoUsuario.nombre,
-                email: nuevoUsuario.email,
-                rol: nuevoUsuario.rol,
-            },
-        });
+    logger.logAuth('register.exitoso', {
+      userId: nuevoUsuario.id,
+      email,
+      rol,
+      ip: req.ip,
+    });
 
-    } catch (error) {
-        console.error('Error al registrar:', error);
-        return res.status(500).json({ error: 'Error interno del servidor.' });
-    }
+    res.status(201).json({
+      success: true,
+      message: 'Cuenta creada exitosamente',
+      token,
+      usuario: {
+        id: nuevoUsuario.id,
+        nombre: nuevoUsuario.nombre,
+        email: nuevoUsuario.email,
+        rol: nuevoUsuario.rol,
+      },
+    });
+
+  } catch (error) {
+    next(error); // Pasa al errorHandler global
+  }
 };
 
-exports.login = async (req, res) => {
+/**
+ * POST /api/auth/login
+ * Inicia sesión y devuelve JWT
+ * 
+ * SEGURIDAD: Siempre retorna el mismo mensaje si email o contraseña fallan.
+ * Esto previene que un atacante sepa si el email existe.
+ */
+exports.login = async (req, res, next) => {
+  try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Datos incompletos.' });
+    const mensajeError = 'Credenciales incorrectas'; // Mensaje genérico
 
-    try {
-        const usuario = await Usuario.findOne({ where: { email } });
-        if (!usuario) return res.status(401).json({ error: 'Credenciales inválidas.' });
+    // Buscar usuario (incluir password para comparar)
+    const usuario = await Usuario.findOne({ where: { email } });
 
-        const isMatch = await comparePassword(password, usuario.hash_contrasena);
-        if (!isMatch) return res.status(401).json({ error: 'Credenciales inválidas.' });
+    // IMPORTANTE: Siempre hacer bcrypt.compare aunque el usuario no exista.
+    // Esto previene timing attacks (medir el tiempo de respuesta para saber si el email existe).
+    const hashFalso = '$2b$12$invalidhashfortimingreasons000000000000000000000000000';
+    const hashReal  = usuario?.password || hashFalso;
+    const passwordValida = await bcrypt.compare(password, hashReal);
 
-        const token = generateToken(usuario);
-        return res.status(200).json({
-            message: 'Login exitoso.',
-            token,
-            usuario: {
-                id: usuario.id,
-                nombre: usuario.nombre,
-                email: usuario.email,
-                rol: usuario.rol,
-            },
-        });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: 'Error en el servidor.' });
+    if (!usuario || !passwordValida) {
+      logger.logAuth('login.fallido', { email, ip: req.ip });
+      return res.status(401).json({ success: false, message: mensajeError });
     }
+
+    // Generar JWT
+    const token = jwt.sign(
+      { id: usuario.id, email: usuario.email, rol: usuario.rol },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    logger.logAuth('login.exitoso', {
+      userId: usuario.id,
+      email,
+      rol: usuario.rol,
+      ip: req.ip,
+    });
+
+    res.json({
+      success: true,
+      message: 'Inicio de sesión exitoso',
+      token,
+      usuario: {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        email: usuario.email,
+        rol: usuario.rol,
+      },
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/auth/me
+ * Retorna el perfil del usuario autenticado
+ */
+exports.getMe = async (req, res, next) => {
+  try {
+    const usuario = await Usuario.findByPk(req.usuario.id, {
+      attributes: { exclude: ['password'] },
+    });
+
+    if (!usuario) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    res.json({ success: true, usuario });
+  } catch (error) {
+    next(error);
+  }
 };

@@ -1,13 +1,24 @@
-// ARCHIVO: backend/routes/authRoutes.js
+/**
+ * ARCHIVO: backend/routes/authRoutes.js
+ * 
+ * MEJORAS: Ahora incluye validaciones en cada endpoint.
+ * El orden middleware es: validación → autenticación → controlador
+ */
 
 const express = require('express');
-const router = express.Router();
-// Importamos el controlador, que ahora tiene la función 'register'
-const authController = require('../controllers/authController');
+const router  = express.Router();
 
-// Ruta POST para el registro de usuarios
-// URL: /api/auth/register
-router.post('/register', authController.register); // <--- Aquí ya no habrá error porque authController.register es una función
-router.post('/login', authController.login)
-// Exportar el router
+const authController = require('../controllers/authController');
+const { validarRegistro, validarLogin } = require('../middleware/validaciones');
+const { verificarToken } = require('../middleware/authMiddleware');
+
+// POST /api/auth/register — con validaciones
+router.post('/register', validarRegistro, authController.registrar);
+
+// POST /api/auth/login — con validaciones
+router.post('/login', validarLogin, authController.login);
+
+// GET /api/auth/me — ruta protegida
+router.get('/me', verificarToken, authController.getMe);
+
 module.exports = router;

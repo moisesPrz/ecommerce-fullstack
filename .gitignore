@@ -1,0 +1,40 @@
+﻿# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables (NUNCA subir al repo)
+.env
+backend/.env
+frontend/.env
+*.env.local
+
+# Logs
+logs/
+*.log
+backend/logs/
+
+# Build
+dist/
+frontend/dist/
+build/
+
+# Uploads temporales
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Carpetas de trabajo que no van al repo
+fase4/
+fase3/
+fase2/
+redesign/
+security/
+base de datos/
+base ecommerce/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
