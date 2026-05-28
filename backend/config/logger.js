@@ -1,11 +1,6 @@
-﻿const winston = require('winston');
+const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
-
-const logsDir = path.join(__dirname, '..', 'logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
 
 const esProd = process.env.NODE_ENV === 'production';
 
@@ -24,13 +19,19 @@ const formatoConsola = winston.format.combine(
   })
 );
 
-const logger = winston.createLogger({
-  level: esProd ? 'info' : 'debug',
-  transports: [
-    new winston.transports.Console({
-      format: formatoConsola,
-      level: esProd ? 'info' : 'debug',
-    }),
+const transports = [
+  new winston.transports.Console({
+    format: formatoConsola,
+    level: esProd ? 'info' : 'debug',
+  }),
+];
+
+// En desarrollo, también escribir a archivos locales
+if (!esProd) {
+  const logsDir = path.join(__dirname, '..', 'logs');
+  if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+
+  transports.push(
     new winston.transports.File({
       filename: path.join(logsDir, 'error.log'),
       level: 'error',
@@ -43,8 +44,13 @@ const logger = winston.createLogger({
       format: formatoArchivo,
       maxsize: 10 * 1024 * 1024,
       maxFiles: 10,
-    }),
-  ],
+    })
+  );
+}
+
+const logger = winston.createLogger({
+  level: esProd ? 'info' : 'debug',
+  transports,
   exitOnError: false,
 });
 
@@ -59,7 +65,7 @@ logger.logBusiness = (evento, datos) => {
 logger.logError = (contexto, error, datos = {}) => {
   logger.error(`ERROR | ${contexto}`, {
     message: error.message,
-    stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    stack: !esProd ? error.stack : undefined,
     ...datos,
   });
 };

@@ -1,9 +1,8 @@
-// ARCHIVO: backend/controllers/paymentController.js
 const Stripe = require('stripe');
-// ⚠️ IMPORTANTE: Pega tu SECRET KEY real aquí abajo (mantenla secreta)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const Producto = require('../models/Producto');
+const logger   = require('../config/logger');
 
 exports.crearIntentoPago = async (req, res) => {
   try {
@@ -13,39 +12,38 @@ exports.crearIntentoPago = async (req, res) => {
       return res.status(400).json({ error: 'No hay items para cobrar' });
     }
 
-    // 1. SEGURIDAD: Recalcular el total en el servidor
-    // No confiamos en el precio que envía el frontend. Buscamos el precio real en la BD.
+    // Recalcular total en el servidor (nunca confiar en precios del frontend)
+    // y validar stock antes de cobrar — evita cobrar por items sin stock
     let totalCalculado = 0;
 
     for (const item of items) {
-      const productoReal = await Producto.findByPk(item.id);
-      if (productoReal) {
-        // Multiplicamos precio * cantidad
-        totalCalculado += Number(productoReal.precio) * item.quantity;
+      const producto = await Producto.findByPk(item.id);
+      if (!producto) {
+        return res.status(400).json({ error: `Producto #${item.id} no encontrado` });
       }
+      if (producto.stock < item.quantity) {
+        return res.status(400).json({ error: `Stock insuficiente para "${producto.nombre}"` });
+      }
+      totalCalculado += Number(producto.precio) * item.quantity;
     }
 
-    // 2. Stripe trabaja con CENTAVOS (Integers)
-    // $20.00 se debe enviar como 2000
     const totalEnCentavos = Math.round(totalCalculado * 100);
 
-    // 3. Crear el "PaymentIntent" en Stripe
-    // Esto le dice a Stripe: "Prepárate para recibir un pago de X cantidad"
+    // Stripe requiere mínimo 50 centavos
+    if (totalEnCentavos < 50) {
+      return res.status(400).json({ error: 'El monto mínimo de compra es $0.50' });
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalEnCentavos,
-      currency: 'usd', // O 'cop', 'mxn', etc.
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      currency: 'usd',
+      automatic_payment_methods: { enabled: true },
     });
 
-    // 4. Enviamos el "secreto" al frontend para que termine el pago
-    res.send({
-      clientSecret: paymentIntent.client_secret,
-    });
+    res.json({ clientSecret: paymentIntent.client_secret });
 
   } catch (error) {
-    console.error("Error en Stripe:", error);
+    logger.error('Error al crear PaymentIntent de Stripe', { error: error.message });
     res.status(500).json({ error: 'Error al iniciar el pago' });
   }
 };

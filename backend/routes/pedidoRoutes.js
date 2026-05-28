@@ -7,7 +7,10 @@ const path = require('path');
 // Middleware de seguridad
 const authMiddlewarePath = path.join(__dirname, '..', 'middleware', 'authMiddleware');
 const { verificarToken } = require(authMiddlewarePath);
+const { validarCrearPedido } = require('../middleware/validaciones');
+
 // Rutas
-router.post('/', verificarToken, pedidoController.crearPedido);
-router.get('/mis-pedidos', verificarToken, pedidoController.obtenerMisPedidos);
+router.post('/', verificarToken, validarCrearPedido, pedidoController.crearPedido);
+router.get('/', verificarToken, pedidoController.obtenerMisPedidos);
+router.get('/mis-pedidos', verificarToken, pedidoController.obtenerMisPedidos); // alias mantenido por compatibilidad
 module.exports = router;

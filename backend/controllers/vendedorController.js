@@ -1,157 +1,187 @@
-// ARCHIVO: backend/controllers/vendedorController.js
-const Pedido = require('../models/Pedido');
+const Pedido       = require('../models/Pedido');
 const DetallePedido = require('../models/DetallePedido');
-const Producto = require('../models/Producto');
-const Usuario = require('../models/Usuario');
-const { Op } = require('sequelize');
-const sequelize = require('../config/database').sequelize || require('../config/database');
+const Producto     = require('../models/Producto');
+const Usuario      = require('../models/Usuario');
+const Vendedor     = require('../models/Vendedor');
+const logger       = require('../config/logger');
+const { enviarEmail, templates } = require('../config/mailer');
 
-// ─── DASHBOARD — Estadísticas del vendedor ───────────────
+// Helper: obtener el perfil Vendedor del usuario autenticado
+const getVendedor = async (idUsuario) => {
+  const vendedor = await Vendedor.findOne({ where: { id_usuario: idUsuario } });
+  return vendedor;
+};
+
+// ─── DASHBOARD ───────────────────────────────────────────────
 exports.getDashboard = async (req, res) => {
   try {
-    const vendedorId = req.usuario.id;
+    const vendedor = await getVendedor(req.usuario.id);
+    if (!vendedor) return res.status(403).json({ error: 'Perfil de vendedor no encontrado' });
 
-    // Total de productos del vendedor
-    const totalProductos = await Producto.count({
-      where: { UsuarioId: vendedorId }
+    const totalProductos = await Producto.count({ where: { id_vendedor: vendedor.id } });
+
+    const totalPedidos = await Pedido.count({
+      include: [{
+        model: Producto,
+        where: { id_vendedor: vendedor.id },
+        required: true,
+        through: { model: DetallePedido, attributes: [] },
+        attributes: [],
+      }],
+      distinct: true,
+      col: 'Pedido.id',
     });
 
-    // Productos sin stock
-    const sinStock = await Producto.count({
-      where: { UsuarioId: vendedorId, stock: 0 }
-    });
-
-    // Pedidos que contienen productos del vendedor
-    const misProductos = await Producto.findAll({
-      where: { UsuarioId: vendedorId },
-      attributes: ['id']
-    });
-    const misProductoIds = misProductos.map(p => p.id);
-
-    // Detalles de pedidos con mis productos
     const detalles = await DetallePedido.findAll({
-      where: { ProductoId: { [Op.in]: misProductoIds } },
-      include: [
-        { model: Producto, attributes: ['nombre', 'imagen_url', 'precio'] },
-        {
-          model: Pedido,
-          attributes: ['id', 'estado', 'total', 'createdAt'],
-          include: [{ model: Usuario, attributes: ['nombre', 'email'] }]
-        }
-      ],
-      order: [[Pedido, 'createdAt', 'DESC']]
+      attributes: ['precio_unitario', 'cantidad'],
+      include: [{
+        model: Producto,
+        attributes: [],
+        where: { id_vendedor: vendedor.id },
+        required: true,
+      }],
     });
 
-    // Calcular ventas totales
-    const totalVentas = detalles.reduce((sum, d) => {
-      return sum + (parseFloat(d.precio_unitario) * d.cantidad);
-    }, 0);
+    const totalVentas = detalles.reduce((sum, d) =>
+      sum + (parseFloat(d.precio_unitario || 0) * (d.cantidad || 0)), 0
+    );
 
-    // Pedidos únicos
-    const pedidosUnicos = [...new Set(detalles.map(d => d.PedidoId))];
-
-    // Últimas 5 ventas
-    const ultimasVentas = detalles.slice(0, 5);
-
-    return res.json({
-      estadisticas: {
-        totalProductos,
-        sinStock,
-        totalPedidos: pedidosUnicos.length,
-        totalVentas: totalVentas.toFixed(2)
-      },
-      ultimasVentas
+    res.json({
+      totalProductos,
+      totalPedidos,
+      totalVentas: totalVentas.toFixed(2),
+      pedidosMes: totalPedidos,
     });
-
   } catch (error) {
-    console.error('Error en dashboard vendedor:', error);
+    logger.error('Error en dashboard vendedor', { error: error.message });
     res.status(500).json({ error: 'Error al cargar el dashboard' });
   }
 };
 
-// ─── MIS PRODUCTOS ───────────────────────────────────────
+// ─── MIS PRODUCTOS ────────────────────────────────────────────
 exports.getMisProductos = async (req, res) => {
   try {
-    const productos = await Producto.findAll({
-      where: { UsuarioId: req.usuario.id },
-      order: [['createdAt', 'DESC']]
+    const vendedor = await getVendedor(req.usuario.id);
+    if (!vendedor) return res.status(403).json({ error: 'Perfil de vendedor no encontrado' });
+
+    const pagina = Math.max(1, parseInt(req.query.pagina) || 1);
+    const limite = Math.min(50, Math.max(1, parseInt(req.query.limite) || 10));
+    const offset = (pagina - 1) * limite;
+
+    const { count, rows } = await Producto.findAndCountAll({
+      where: { id_vendedor: vendedor.id },
+      order: [['id', 'DESC']],
+      limit: limite,
+      offset,
     });
-    res.json(productos);
+
+    res.json({
+      productos: rows,
+      total: count,
+      pagina,
+      totalPaginas: Math.ceil(count / limite),
+    });
   } catch (error) {
+    logger.error('Error al obtener productos del vendedor', { error: error.message });
     res.status(500).json({ error: 'Error al obtener productos' });
   }
 };
 
-// ─── MIS PEDIDOS RECIBIDOS ───────────────────────────────
+// ─── MIS PEDIDOS RECIBIDOS ────────────────────────────────────
 exports.getMisPedidosRecibidos = async (req, res) => {
   try {
-    const misProductos = await Producto.findAll({
-      where: { UsuarioId: req.usuario.id },
-      attributes: ['id']
-    });
-    const misProductoIds = misProductos.map(p => p.id);
+    const vendedor = await getVendedor(req.usuario.id);
+    if (!vendedor) return res.status(403).json({ error: 'Perfil de vendedor no encontrado' });
 
-    if (misProductoIds.length === 0) return res.json([]);
+    const pagina = Math.max(1, parseInt(req.query.pagina) || 1);
+    const limite = Math.min(50, Math.max(1, parseInt(req.query.limite) || 10));
+    const offset = (pagina - 1) * limite;
 
-    const detalles = await DetallePedido.findAll({
-      where: { ProductoId: { [Op.in]: misProductoIds } },
+    const { count, rows } = await Pedido.findAndCountAll({
       include: [
-        { model: Producto, attributes: ['nombre', 'imagen_url', 'precio'] },
+        { model: Usuario, attributes: ['nombre', 'email'] },
         {
-          model: Pedido,
-          include: [{ model: Usuario, attributes: ['nombre', 'email'] }]
-        }
+          model: Producto,
+          through: { model: DetallePedido, attributes: ['cantidad', 'precio_unitario'] },
+          where: { id_vendedor: vendedor.id },
+          required: true,
+          attributes: ['id', 'nombre', 'imagen_url'],
+        },
       ],
-      order: [[Pedido, 'createdAt', 'DESC']]
+      order: [['id', 'DESC']],
+      limit: limite,
+      offset,
+      distinct: true,
+      col: 'Pedido.id',
     });
 
-    // Agrupar por pedido
-    const pedidosMap = {};
-    detalles.forEach(d => {
-      const pedidoId = d.PedidoId;
-      if (!pedidosMap[pedidoId]) {
-        pedidosMap[pedidoId] = {
-          id: pedidoId,
-          estado: d.Pedido.estado,
-          fecha: d.Pedido.createdAt,
-          cliente: d.Pedido.Usuario,
-          items: [],
-          subtotal: 0
-        };
-      }
-      pedidosMap[pedidoId].items.push({
-        producto: d.Producto.nombre,
-        imagen: d.Producto.imagen_url,
-        cantidad: d.cantidad,
-        precio: d.precio_unitario
-      });
-      pedidosMap[pedidoId].subtotal += parseFloat(d.precio_unitario) * d.cantidad;
+    const resultado = rows.map(p => {
+      const obj = p.toJSON();
+      const subtotal = (obj.Productos || []).reduce((sum, prod) => {
+        return sum + (parseFloat(prod.DetallePedido?.precio_unitario || 0) * (prod.DetallePedido?.cantidad || 0));
+      }, 0);
+      return { ...obj, subtotal: subtotal.toFixed(2) };
     });
 
-    res.json(Object.values(pedidosMap));
+    res.json({
+      pedidos: resultado,
+      total: count,
+      pagina,
+      totalPaginas: Math.ceil(count / limite),
+    });
   } catch (error) {
-    console.error('Error al obtener pedidos recibidos:', error);
+    logger.error('Error al obtener pedidos del vendedor', { error: error.message });
     res.status(500).json({ error: 'Error al cargar pedidos' });
   }
 };
 
-// ─── CAMBIAR ESTADO DE PEDIDO ────────────────────────────
+// ─── CAMBIAR ESTADO DE PEDIDO ─────────────────────────────────
 exports.actualizarEstadoPedido = async (req, res) => {
   try {
     const { id } = req.params;
     const { estado } = req.body;
+
+    const vendedor = await getVendedor(req.usuario.id);
+    if (!vendedor) return res.status(403).json({ error: 'Perfil de vendedor no encontrado' });
 
     const estadosValidos = ['pendiente', 'procesando', 'enviado', 'entregado', 'cancelado'];
     if (!estadosValidos.includes(estado)) {
       return res.status(400).json({ error: 'Estado inválido' });
     }
 
+    // Verificar que el pedido contiene al menos un producto de este vendedor
+    const tieneProductos = await DetallePedido.findOne({
+      where: { id_pedido: id },
+      include: [{
+        model: Producto,
+        where: { id_vendedor: vendedor.id },
+        required: true,
+        attributes: [],
+      }],
+    });
+    if (!tieneProductos) {
+      return res.status(403).json({ error: 'No tienes productos en este pedido' });
+    }
+
     const pedido = await Pedido.findByPk(id);
     if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' });
 
     await pedido.update({ estado });
+
+    const estadosQueNotifican = ['procesando', 'enviado', 'entregado', 'cancelado'];
+    if (estadosQueNotifican.includes(estado)) {
+      try {
+        const usuario = await Usuario.findByPk(pedido.id_usuario, { attributes: ['nombre', 'email'] });
+        if (usuario) {
+          const { subject, html } = templates.cambioEstadoPedido({ nombre: usuario.nombre, pedidoId: id, estado });
+          await enviarEmail({ to: usuario.email, subject, html });
+        }
+      } catch (_) {}
+    }
+
     res.json({ message: 'Estado actualizado', pedido });
   } catch (error) {
+    logger.error('Error al actualizar estado de pedido', { error: error.message });
     res.status(500).json({ error: 'Error al actualizar estado' });
   }
 };

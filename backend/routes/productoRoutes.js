@@ -35,6 +35,7 @@ router.get('/:id', productoController.obtenerProductoPorId);
 // Rutas protegidas
 router.post('/',
   verificarToken,
+  esVendedor,
   upload.single('imagen'),
   validarCrearProducto,
   productoController.crearProducto
@@ -42,6 +43,7 @@ router.post('/',
 
 router.put('/:id',
   verificarToken,
+  esVendedor,
   upload.single('imagen'),
   validarActualizarProducto,
   productoController.actualizarProducto

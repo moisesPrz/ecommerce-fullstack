@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /vendedor
+Disallow: /perfil
+Disallow: /carrito
+Disallow: /pago
+Disallow: /pedidos
+
+Sitemap: https://techmarket.com.co/sitemap.xml

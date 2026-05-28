@@ -1,40 +1,25 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-// Definición del modelo "Usuario"
 const Usuario = sequelize.define('Usuario', {
-    // Definición de las columnas (debe coincidir con la tabla 'usuarios' en MySQL)
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-    },
-    nombre: {
-        type: DataTypes.STRING(100),
-        allowNull: false,
-    },
-    email: {
-        type: DataTypes.STRING(100),
-        allowNull: false,
-        unique: true, // Debe ser único (como lo definimos en SQL)
-    },
-    hash_contrasena: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-    },
-    rol: {
-        type: DataTypes.ENUM('cliente', 'administrador'),
-        defaultValue: 'cliente',
-    },
-    // Sequelize automáticamente añade `createdAt` y `updatedAt`.
-    // La columna `fecha_registro` que definimos en SQL se mapea a `createdAt` por defecto si no se especifica.
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  nombre: { type: DataTypes.STRING(100), allowNull: false },
+  email: { type: DataTypes.STRING(100), allowNull: false, unique: true },
+  hash_contrasena: { type: DataTypes.STRING(255), allowNull: false },
+  rol: { type: DataTypes.ENUM('cliente', 'vendedor', 'administrador'), defaultValue: 'cliente' },
+  telefono: { type: DataTypes.STRING(20), allowNull: true },
+  avatar_url: { type: DataTypes.STRING(500), allowNull: true },
+  is_activo: { type: DataTypes.BOOLEAN, defaultValue: true },
+  reset_token: { type: DataTypes.STRING(64), allowNull: true },
+  reset_token_expires: { type: DataTypes.DATE, allowNull: true },
 }, {
-    // Opciones del modelo
-    tableName: 'usuarios', // Nombre exacto de la tabla en MySQL
-    timestamps: true, // Habilita createdAt y updatedAt
-    createdAt: 'fecha_registro', // Mapea 'createdAt' al nombre SQL 'fecha_registro'
-    updatedAt: false, // Deshabilitamos la columna 'updatedAt' si no la necesitamos
+  tableName: 'usuarios',
+  timestamps: true,
+  underscored: true,
+  paranoid: true,
+  indexes: [
+    { unique: true, fields: ['email'], name: 'idx_usuarios_email' },
+  ],
 });
 
-// Exportamos el modelo
 module.exports = Usuario;

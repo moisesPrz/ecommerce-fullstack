@@ -1,67 +1,72 @@
-import { createContext, useState, useEffect, useContext } from 'react';
-import api from '../api/axiosConfig';
+// src/context/AuthContext.jsx
+import { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import api from '../services/api';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth debe usarse dentro de AuthProvider');
+  return ctx;
+};
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+  const [usuario, setUsuario] = useState(null);
+  const [cargando, setCargando] = useState(true);
 
-    // Verificar si hay sesión guardada al cargar la página
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-        const userData = localStorage.getItem('usuario');
-        
-        if (token && userData) {
-            setUser(JSON.parse(userData));
-        }
-        setLoading(false);
-    }, []);
-
-    // Función de Login
-    const login = async (email, password) => {
-        try {
-            const res = await api.post('/auth/login', { email, password });
-            
-            // Verificamos que la respuesta tenga data
-            if (res.data) {
-                const { token, usuario } = res.data;
-                // Guardar en localStorage
-                localStorage.setItem('token', token);
-                localStorage.setItem('usuario', JSON.stringify(usuario));
-                setUser(usuario);
-                return { success: true };
-            }
-            return { success: false, error: 'Respuesta inesperada del servidor' };
-            
-        } catch (error) {
-            console.error("Error en login:", error.response?.data);
-            return { 
-                success: false, 
-                error: error.response?.data?.error || 'Error al iniciar sesión' 
-            };
-        }
-    };
-
-    // Función de Logout
-    const logout = () => {
+  // Restaurar sesión al cargar la app
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('usuario');
+    if (token && userData) {
+      try {
+        setUsuario(JSON.parse(userData));
+      } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('usuario');
-        setUser(null);
-    };
+      }
+    }
+    setCargando(false);
+  }, []);
 
-    const value = {
-        user,
-        login,
-        logout,
-        isAuthenticated: !!user,
-    };
+  const login = useCallback(async (email, password) => {
+    // Limpiar datos del usuario anterior antes de cargar el nuevo
+    window.dispatchEvent(new CustomEvent('auth:logout'));
+    const res = await api.post('/auth/login', { email, password });
+    const { token, usuario } = res.data;
+    localStorage.setItem('token', token);
+    localStorage.setItem('usuario', JSON.stringify(usuario));
+    setUsuario(usuario);
+    return usuario;
+  }, []);
 
-    return (
-        <AuthContext.Provider value={value}>
-            {!loading && children}
-        </AuthContext.Provider>
-    );
+  const registro = useCallback(async (datos) => {
+    window.dispatchEvent(new CustomEvent('auth:logout'));
+    const res = await api.post('/auth/register', datos);
+    const { token, usuario } = res.data;
+    localStorage.setItem('token', token);
+    localStorage.setItem('usuario', JSON.stringify(usuario));
+    setUsuario(usuario);
+    return usuario;
+  }, []);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    setUsuario(null);
+    window.dispatchEvent(new CustomEvent('auth:logout'));
+  }, []);
+
+  const esAdmin = usuario?.rol === 'administrador';
+  const esVendedor = ['vendedor', 'administrador'].includes(usuario?.rol);
+  const estaAutenticado = !!usuario;
+
+  return (
+    <AuthContext.Provider value={{
+      usuario, cargando, login, registro, logout,
+      esAdmin, esVendedor, estaAutenticado
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

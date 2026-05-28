@@ -161,6 +161,85 @@ const validarIntentoPago = [
   manejarErrores,
 ];
 
+// ── CATEGORÍAS ───────────────────────────────────────────
+
+const validarCrearCategoria = [
+  body('nombre')
+    .trim()
+    .notEmpty().withMessage('El nombre de la categoría es requerido')
+    .isLength({ min: 2, max: 100 }).withMessage('El nombre debe tener entre 2 y 100 caracteres')
+    .escape(),
+
+  body('descripcion')
+    .optional()
+    .trim()
+    .isLength({ max: 500 }).withMessage('La descripción no puede exceder 500 caracteres')
+    .escape(),
+
+  manejarErrores,
+];
+
+// ── RESEÑAS ───────────────────────────────────────────────
+
+const validarCrearResena = [
+  body('id_producto')
+    .notEmpty().withMessage('id_producto es requerido')
+    .isInt({ min: 1 }).withMessage('id_producto debe ser un entero positivo'),
+
+  body('calificacion')
+    .notEmpty().withMessage('La calificación es requerida')
+    .isInt({ min: 1, max: 5 }).withMessage('La calificación debe ser un entero entre 1 y 5'),
+
+  body('comentario')
+    .optional()
+    .trim()
+    .isLength({ max: 1000 }).withMessage('El comentario no puede exceder 1000 caracteres')
+    .escape(),
+
+  manejarErrores,
+];
+
+// ── DIRECCIONES ──────────────────────────────────────────
+
+const validarDireccion = [
+  body('nombre_destinatario')
+    .trim()
+    .notEmpty().withMessage('El nombre del destinatario es requerido')
+    .isLength({ min: 2, max: 100 }).withMessage('Debe tener entre 2 y 100 caracteres')
+    .escape(),
+
+  body('direccion')
+    .trim()
+    .notEmpty().withMessage('La dirección es requerida')
+    .isLength({ min: 5, max: 255 }).withMessage('La dirección debe tener entre 5 y 255 caracteres')
+    .escape(),
+
+  body('ciudad')
+    .trim()
+    .notEmpty().withMessage('La ciudad es requerida')
+    .isLength({ min: 2, max: 100 }).withMessage('La ciudad debe tener entre 2 y 100 caracteres')
+    .escape(),
+
+  body('departamento')
+    .trim()
+    .notEmpty().withMessage('El departamento es requerido')
+    .isLength({ min: 2, max: 100 }).withMessage('El departamento debe tener entre 2 y 100 caracteres')
+    .escape(),
+
+  body('codigo_postal')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 20 }).withMessage('El código postal no puede exceder 20 caracteres')
+    .escape(),
+
+  body('telefono')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 20 }).withMessage('El teléfono no puede exceder 20 caracteres'),
+
+  manejarErrores,
+];
+
 // ── ADMIN ────────────────────────────────────────────────
 
 const validarCambiarRol = [
@@ -209,6 +288,9 @@ module.exports = {
   validarActualizarProducto,
   validarCrearPedido,
   validarIntentoPago,
+  validarCrearCategoria,
+  validarCrearResena,
+  validarDireccion,
   validarCambiarRol,
   validarCambiarEstado,
   validarBusqueda,

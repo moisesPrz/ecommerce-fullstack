@@ -1,5 +1,6 @@
 // ARCHIVO: backend/config/database.js
 const { Sequelize } = require('sequelize');
+const logger = require('./logger');
 require('dotenv').config();
 
 let sequelize;
@@ -35,9 +36,9 @@ else {
 const connectDB = async () => {
     try {
         await sequelize.authenticate();
-        console.log('✅ Conexión a la Base de Datos exitosa');
+        logger.info('Conexión a la Base de Datos exitosa');
     } catch (error) {
-        console.error('❌ Error conectando a la Base de Datos:', error);
+        logger.error('Error conectando a la Base de Datos', { error: error.message });
     }
 };
 

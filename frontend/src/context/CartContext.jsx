@@ -1,68 +1,70 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+// src/context/CartContext.jsx
+import { createContext, useState, useContext, useCallback, useEffect } from 'react';
 
-const CartContext = createContext();
+const CartContext = createContext(null);
 
-export const useCart = () => useContext(CartContext);
+export const useCart = () => {
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error('useCart debe usarse dentro de CartProvider');
+  return ctx;
+};
 
 export const CartProvider = ({ children }) => {
-    // Inicializamos el carrito leyendo de localStorage (para no perder datos al recargar)
-    const [cart, setCart] = useState(() => {
-        try {
-            const savedCart = localStorage.getItem('shopping-cart');
-            return savedCart ? JSON.parse(savedCart) : [];
-        } catch (error) {
-            return [];
-        }
+  const [carrito, setCarrito] = useState(() => {
+    try {
+      const guardado = localStorage.getItem('carrito');
+      return guardado ? JSON.parse(guardado) : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('carrito', JSON.stringify(carrito));
+  }, [carrito]);
+
+  useEffect(() => {
+    const handler = () => setCarrito([]);
+    window.addEventListener('auth:logout', handler);
+    return () => window.removeEventListener('auth:logout', handler);
+  }, []);
+
+  const agregar = useCallback((producto) => {
+    setCarrito(prev => {
+      const existe = prev.find(item => item.id === producto.id);
+      if (existe) {
+        return prev.map(item =>
+          item.id === producto.id
+            ? { ...item, cantidad: Math.min(item.stock, item.cantidad + 1) }
+            : item
+        );
+      }
+      return [...prev, { ...producto, cantidad: 1 }];
     });
+  }, []);
 
-    // Cada vez que el carrito cambie, lo guardamos en localStorage
-    useEffect(() => {
-        localStorage.setItem('shopping-cart', JSON.stringify(cart));
-    }, [cart]);
+  const eliminar = useCallback((id) => {
+    setCarrito(prev => prev.filter(item => item.id !== id));
+  }, []);
 
-    // Función: Agregar producto
-    const addToCart = (product) => {
-        setCart(prevCart => {
-            // Revisar si el producto ya está en el carrito
-            const existingItem = prevCart.find(item => item.id === product.id);
+  const actualizarCantidad = useCallback((id, cambio) => {
+    setCarrito(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      const nueva = item.cantidad + cambio;
+      if (nueva < 1 || nueva > item.stock) return item;
+      return { ...item, cantidad: nueva };
+    }));
+  }, []);
 
-            if (existingItem) {
-                // Si existe, aumentamos la cantidad
-                return prevCart.map(item =>
-                    item.id === product.id
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                );
-            }
-            // Si no existe, lo agregamos con cantidad 1
-            return [...prevCart, { ...product, quantity: 1 }];
-        });
-    };
+  const vaciar = useCallback(() => setCarrito([]), []);
 
-    // Función: Eliminar producto
-    const removeFromCart = (productId) => {
-        setCart(prevCart => prevCart.filter(item => item.id !== productId));
-    };
+  const total = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+  const cantidadItems = carrito.reduce((acc, item) => acc + item.cantidad, 0);
 
-    // Función: Vaciar carrito (ej: al comprar)
-    const clearCart = () => setCart([]);
-
-    // Cálculo del Total ($)
-    const total = cart.reduce((sum, item) => sum + (parseFloat(item.precio) * item.quantity), 0);
-
-    // Cantidad total de items (para el numerito en el icono del carrito)
-    const itemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-    return (
-        <CartContext.Provider value={{ 
-            cart, 
-            addToCart, 
-            removeFromCart, 
-            clearCart, 
-            total,
-            itemsCount 
-        }}>
-            {children}
-        </CartContext.Provider>
-    );
+  return (
+    <CartContext.Provider value={{
+      carrito, total, cantidadItems,
+      agregar, eliminar, actualizarCantidad, vaciar
+    }}>
+      {children}
+    </CartContext.Provider>
+  );
 };
